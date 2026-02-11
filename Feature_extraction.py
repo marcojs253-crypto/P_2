@@ -32,7 +32,7 @@ for wav in alle_wav_files:
 
     # Gemmer filnavn (uden path) + aggregerede features
     row = {
-        "path": wav.name,
+        "filnavn": wav.name,
 
         "centroid_mean": float(np.mean(centroid)),
         "centroid_std":  float(np.std(centroid)),
