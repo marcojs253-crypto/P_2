@@ -4,7 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-# ➕ nødvendige imports til audio feature extraction
+# Nødvendige imports til audio feature extraction
 import librosa
 import numpy as np
 
