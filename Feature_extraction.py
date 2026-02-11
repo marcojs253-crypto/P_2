@@ -29,9 +29,9 @@ for wav in alle_wav_files:
     rolloff = librosa.feature.spectral_rolloff(S=S, sr=sr, roll_percent=0.85)
     flatness = librosa.feature.spectral_flatness(S=S)
 
-    # Gemmer path + aggregerede features (mean/std) så hver fil bliver én række
+    # Gemmer filnavn (uden path) + aggregerede features
     row = {
-        "path": str(wav),
+        "path": wav.name,   # ← KUN filnavnet
 
         "centroid_mean": float(np.mean(centroid)),
         "centroid_std":  float(np.std(centroid)),
@@ -48,7 +48,8 @@ for wav in alle_wav_files:
 
     wav_liste.append(row)
 
-# Konverterer listen af filstier + features til en pandas DataFrame
+# Konverterer listen af filnavne + features til en pandas DataFrame
 df_files = pd.DataFrame(wav_liste)
 
+# Gemmer DataFrame som CSV
 df_files.to_csv("df_files.csv", index=False)
