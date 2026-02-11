@@ -3,6 +3,7 @@ import matplotlib as plt
 import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
+from datetime import datetime   # ← TILFØJET
 
 # Nødvendige imports til audio feature extraction
 import librosa
@@ -31,7 +32,7 @@ for wav in alle_wav_files:
 
     # Gemmer filnavn (uden path) + aggregerede features
     row = {
-        "path": wav.name,   # ← KUN filnavnet
+        "path": wav.name,
 
         "centroid_mean": float(np.mean(centroid)),
         "centroid_std":  float(np.std(centroid)),
@@ -51,5 +52,6 @@ for wav in alle_wav_files:
 # Konverterer listen af filnavne + features til en pandas DataFrame
 df_files = pd.DataFrame(wav_liste)
 
-# Gemmer DataFrame som CSV
-df_files.to_csv("df_files.csv", index=False)
+# Gemmer DataFrame som CSV med timestamp (overskriver ikke)
+timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+df_files.to_csv(f"df_files_{timestamp}.csv", index=False)
