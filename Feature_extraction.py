@@ -10,18 +10,14 @@ import librosa
 import numpy as np
 
 # Gemmer datasæt path
-datasæt_lyd = Path(r"C:\programering AAU\2. semester\p_2 filer\NISQA_Corpus\NISQA_TRAIN_LIVE\deg")
+datasæt_lyd = Path("/Users/jonassvirkaer/Desktop/python_projekter/P2 - Projekt/NISQA_Corpus/NISQA_TRAIN_LIVE/deg")
 
 # Loader MOS-scores fra CSV fil
-csv_path = Path(r"C:\programering AAU\2. semester\p_2 filer\NISQA_Corpus\NISQA_TRAIN_LIVE\NISQA_TRAIN_LIVE_con.csv")
+csv_path = Path(r"/Users/jonassvirkaer/Desktop/python_projekter/P2 - Projekt/NISQA_Corpus/NISQA_TRAIN_LIVE/NISQA_TRAIN_LIVE_con.csv")
 df_mos = pd.read_csv(csv_path)
 
 # Finder alle .wav-lydfiler i datasæt-mappen (inkl. undermapper) og sorterer dem
 alle_wav_files = sorted(datasæt_lyd.rglob("*.wav"))
-
-print(f"Finder {len(alle_wav_files)} wav-filer i {datasæt_lyd}")
-if len(alle_wav_files) > 0:
-    print(f"Første fil: {alle_wav_files[0].name}")
 
 # Opretter en tom liste, som skal indeholde information om hver lydfil
 wav_liste = []
@@ -81,4 +77,3 @@ df_files = pd.DataFrame(wav_liste)
 # Gemmer DataFrame som CSV med timestamp (overskriver ikke)
 timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 df_files.to_csv(f"df_files_{timestamp}.csv", index=False)
-
