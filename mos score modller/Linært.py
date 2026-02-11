@@ -44,7 +44,6 @@ def evaluate_model(X, y, label):
         X, y, test_size=0.20, stratify=y, random_state=42
     )
 
-
     model = LinearRegression( 
         fit_intercept=True,
         copy_X=True,
@@ -89,3 +88,7 @@ def evaluate_model(X, y, label):
     # Plot ROC
     plt.plot(fpr, tpr, label=f"{label} (AUC={roc_auc:.3f})")
 
+print("\n" + "="*70)
+print("LINEAR REGRESSION")
+print("="*70)
+evaluate_model(x_training, y_target, "Training_data_deg")
