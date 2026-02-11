@@ -51,6 +51,4 @@ for wav in alle_wav_files:
 # Konverterer listen af filstier + features til en pandas DataFrame
 df_files = pd.DataFrame(wav_liste)
 
-print(wav_liste[:2])      # sanity check
-print(df_files.head())
-print("Antal kolonner:", len(df_files.columns))
+df_files.to_csv("df_files.csv", index=False)
