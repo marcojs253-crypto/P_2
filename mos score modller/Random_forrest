@@ -54,7 +54,6 @@ all_features = base_features + mfcc_features
 
 X = data[all_features]
 
-# 🎯 NY TARGET ⭐⭐⭐
 y = data["distortion_type"]
 
 # ============================================================
@@ -110,9 +109,6 @@ print(f"Accuracy: {acc:.3f}")
 print("\nClassification report:")
 print(classification_report(y_test, y_pred))
 
-# ============================================================
-# Confusion Matrix ⭐⭐⭐⭐⭐ (MEGET vigtig i klassifikation)
-# ============================================================
 
 cm = confusion_matrix(y_test, y_pred)
 
