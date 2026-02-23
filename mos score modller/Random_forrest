@@ -3,17 +3,20 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 
-from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split, cross_val_score
-from sklearn.metrics import accuracy_score, precision_score, recall_score, roc_curve, auc
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+from sklearn.ensemble import RandomForestRegressor
+
+# ============================================================
+# Load data
+# ============================================================
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 data_path = os.path.join(script_dir, "df_files_2026-02-11_13-48-04.csv")
 data = pd.read_csv(data_path)
 
 # ============================================================
-# 1. Feature selection
+# Feature selection
 # ============================================================
 
 base_features = [
@@ -41,6 +44,7 @@ base_features = [
     "hnr",
 ]
 
+# MFCC features (automatisk)
 mfcc_features = []
 for i in range(1, 14):
     mfcc_features.append(f"mfcc{i}_mean")
@@ -48,70 +52,100 @@ for i in range(1, 14):
 
 all_features = base_features + mfcc_features
 
-x_training = data[all_features]
-y_target = data["mos"]
+X = data[all_features]
+y = data["mos"]
 
 # ============================================================
-# 2. Model evaluation
+# Train / Test split
 # ============================================================
 
-def evaluate_model(X, y, label):
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.20, stratify=y, random_state=42
-    )
-
-    model = RandomForestClassifier(
-        n_estimators=300,
-        max_depth=None,
-        random_state=42,
-        n_jobs=-1
-    )
-
-    # Scaling (ikke nødvendigt for RF, men OK)
-    scaler = StandardScaler()
-    X_train_s = scaler.fit_transform(X_train)
-    X_test_s = scaler.transform(X_test)
-
-    X_scaled_full = scaler.fit_transform(X)
-
-    cv_scores = cross_val_score(model, X_scaled_full, y, cv=5)
-
-    print(f"\n{label} Cross-val accuracy: "
-          f"{cv_scores.mean()*100:.2f}% ± {cv_scores.std()*100:.2f}%")
-
-    model.fit(X_train_s, y_train)
-
-    y_pred = model.predict(X_test_s)
-
-    acc = accuracy_score(y_test, y_pred)
-    prec = precision_score(y_test, y_pred, average="weighted", zero_division=0)
-    rec = recall_score(y_test, y_pred, average="weighted", zero_division=0)
-
-    fpr, tpr, _ = roc_curve(y_test, y_pred, pos_label=y_test.unique()[0])
-    roc_auc = auc(fpr, tpr)
-
-    print(f"\n{'='*40}")
-    print(f"{label} RESULTS ({model.__class__.__name__})")
-    print(f"{'='*40}")
-    print(f"Accuracy:      {acc:.3f}")
-    print(f"Precision:     {prec:.3f}")
-    print(f"Recall:        {rec:.3f}")
-    print(f"ROC-AUC:       {roc_auc:.3f}")
-
-    plt.plot(fpr, tpr, label=f"{label} (AUC={roc_auc:.3f})")
-
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.20, random_state=42
+)
 
 # ============================================================
-# 3. Run evaluation
+# Model
+# ============================================================
+
+model = RandomForestRegressor(
+    n_estimators=300,
+    random_state=42,
+    n_jobs=-1
+)
+
+# ============================================================
+# Cross-validation
+# ============================================================
+
+cv_scores = cross_val_score(
+    model,
+    X,
+    y,
+    cv=5,
+    scoring="neg_mean_absolute_error"
+)
+
+cv_mae = -cv_scores.mean()
+
+print("\nCross-validation:")
+print(f"MAE: {cv_mae:.3f}")
+
+# ============================================================
+# Training
+# ============================================================
+
+model.fit(X_train, y_train)
+
+# ============================================================
+# Predictions
+# ============================================================
+
+y_pred = model.predict(X_test)
+
+# ============================================================
+# Metrics
+# ============================================================
+
+mae = mean_absolute_error(y_test, y_pred)
+rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+
+print(f"\n{'='*40}")
+print("Random Forest Regression RESULTS")
+print(f"{'='*40}")
+print(f"MAE:   {mae:.3f}")
+print(f"RMSE:  {rmse:.3f}")
+
+# ============================================================
+# Plot: Prediction vs Ground Truth ⭐⭐⭐
 # ============================================================
 
 plt.figure()
-evaluate_model(x_training, y_target, "Random Forest")
+plt.scatter(y_test, y_pred)
+plt.xlabel("True MOS")
+plt.ylabel("Predicted MOS")
+plt.title("Prediction vs Ground Truth")
+plt.plot([y.min(), y.max()], [y.min(), y.max()])
+plt.show()
 
-plt.plot([0, 1], [0, 1])
-plt.xlabel("False Positive Rate")
-plt.ylabel("True Positive Rate")
-plt.title("ROC Curve")
-plt.legend()
+# ============================================================
+# Feature Importance ⭐⭐⭐ (MEGET VIGTIG!)
+# ============================================================
+
+importances = model.feature_importances_
+
+feature_importance_df = pd.DataFrame({
+    "feature": all_features,
+    "importance": importances
+}).sort_values(by="importance", ascending=False)
+
+print("\nTop 10 vigtigste features:")
+print(feature_importance_df.head(10))
+
+plt.figure()
+plt.barh(
+    feature_importance_df["feature"][:10],
+    feature_importance_df["importance"][:10]
+)
+plt.gca().invert_yaxis()
+plt.title("Top Feature Importances")
 plt.show()
