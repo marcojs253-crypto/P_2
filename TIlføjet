@@ -8,9 +8,9 @@ from datetime import datetime
 import librosa
 import numpy as np
 
-datasæt_lyd = Path("/Users/jonassvirkaer/Desktop/python_projekter/P2 - Projekt/NISQA_Corpus/NISQA_TRAIN_LIVE/deg")
+datasæt_lyd = Path(r"C:\Users\TOTAL TECH\Desktop\NISQA_Corpus\NISQA_TRAIN_LIVE\deg")
 
-csv_path = Path(r"/Users/jonassvirkaer/Desktop/python_projekter/P2 - Projekt/NISQA_Corpus/NISQA_TRAIN_LIVE/NISQA_TRAIN_LIVE_con.csv")
+csv_path = Path(r"C:\Users\TOTAL TECH\Desktop\NISQA_Corpus\NISQA_TRAIN_LIVE\NISQA_TRAIN_LIVE_con.csv")
 df_mos = pd.read_csv(csv_path)
 
 alle_wav_files = sorted(datasæt_lyd.rglob("*.wav"))
