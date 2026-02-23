@@ -13,7 +13,7 @@ import seaborn as sns
 # ============================================================
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
-data_path = os.path.join(script_dir, "df_files_2026-02-23_10-43-15.csv")
+data_path = os.path.join(script_dir, "df_files_with_distortion_type.csv")  # din opdaterede CSV
 data = pd.read_csv(data_path)
 
 # ------------------------------------------------------------
@@ -58,14 +58,15 @@ for i in range(1, 14):
 
 all_features = base_features + mfcc_features
 
-# ------------------------------------------------------------
+# ============================================================
 # Prepare features (X) and target (y)
-# ------------------------------------------------------------
-X = data[all_features]
+# ============================================================
 
-# Ensure the target column exists
+# Ensure target column exists
 if "distortion_type" not in data.columns:
     raise ValueError("Column 'distortion_type' not found in CSV!")
+
+X = data[all_features]
 y = data["distortion_type"]
 
 # ============================================================
@@ -127,7 +128,7 @@ print(classification_report(y_test, y_pred))
 
 cm = confusion_matrix(y_test, y_pred)
 
-plt.figure(figsize=(8,6))
+plt.figure(figsize=(10,8))
 sns.heatmap(
     cm, annot=True, fmt="d", cmap="Blues",
     xticklabels=model.classes_,
