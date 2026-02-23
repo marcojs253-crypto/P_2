@@ -16,8 +16,14 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 data_path = os.path.join(script_dir, "df_files_2026-02-23_10-43-15.csv")
 data = pd.read_csv(data_path)
 
+# ------------------------------------------------------------
+# Clean column names: strip whitespace, lowercase, replace spaces with underscores
+# ------------------------------------------------------------
+data.columns = data.columns.str.strip().str.lower().str.replace(" ", "_")
+print("Columns in dataset:", data.columns.tolist())
+
 # ============================================================
-# Feature selection (samme features som før)
+# Feature selection
 # ============================================================
 
 base_features = [
@@ -52,8 +58,14 @@ for i in range(1, 14):
 
 all_features = base_features + mfcc_features
 
+# ------------------------------------------------------------
+# Prepare features (X) and target (y)
+# ------------------------------------------------------------
 X = data[all_features]
 
+# Ensure the target column exists
+if "distortion_type" not in data.columns:
+    raise ValueError("Column 'distortion_type' not found in CSV!")
 y = data["distortion_type"]
 
 # ============================================================
@@ -109,14 +121,18 @@ print(f"Accuracy: {acc:.3f}")
 print("\nClassification report:")
 print(classification_report(y_test, y_pred))
 
+# ============================================================
+# Confusion matrix
+# ============================================================
 
 cm = confusion_matrix(y_test, y_pred)
 
-plt.figure()
-sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
-            xticklabels=model.classes_,
-            yticklabels=model.classes_)
-
+plt.figure(figsize=(8,6))
+sns.heatmap(
+    cm, annot=True, fmt="d", cmap="Blues",
+    xticklabels=model.classes_,
+    yticklabels=model.classes_
+)
 plt.xlabel("Predicted")
 plt.ylabel("True")
 plt.title("Confusion Matrix")
