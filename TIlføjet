@@ -8,8 +8,8 @@ from datetime import datetime
 # Paths til lydfiler og MOS CSV
 # ============================================================
 
-datasæt_lyd = Path(r"C:\Users\TOTAL TECH\Desktop\NISQA_Corpus\NISQA_TRAIN_LIVE\deg")
-csv_path = Path(r"C:\Users\TOTAL TECH\Desktop\NISQA_Corpus\NISQA_TRAIN_LIVE\NISQA_TRAIN_LIVE_con.csv")
+datasæt_lyd = Path("/Users/jonassvirkaer/Desktop/Training")
+csv_path = Path("/Users/jonassvirkaer/Desktop/python_projekter/P2 - Projekt/P2/P_2/mos score moddler")
 df_mos = pd.read_csv(csv_path)
 
 alle_wav_files = sorted(datasæt_lyd.rglob("*.wav"))

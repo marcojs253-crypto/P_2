@@ -10,7 +10,7 @@ import librosa
 import numpy as np
 
 # Gemmer datasæt path
-datasæt_lyd = Path("/Users/jonassvirkaer/Desktop/python_projekter/P2 - Projekt/NISQA_Corpus/NISQA_TRAIN_LIVE/deg")
+datasæt_lyd = Path("/Users/jonassvirkaer/Desktop/Training/")
 
 # Loader MOS-scores fra CSV fil
 csv_path = Path(r"/Users/jonassvirkaer/Desktop/python_projekter/P2 - Projekt/NISQA_Corpus/NISQA_TRAIN_LIVE/NISQA_TRAIN_LIVE_con.csv")
