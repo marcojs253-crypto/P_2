@@ -20,7 +20,7 @@ Adam = keras_api.optimizers.Adam
 # ----------------------------
 # 1. LOAD TRAINING DATA
 # ----------------------------
-train_path = "https://raw.githubusercontent.com/marcojs253-crypto/P_2/refs/heads/main/Training.csv"
+train_path = "Training.csv"
 df_train = pd.read_csv(train_path)
 
 # Fjern irrelevant feature
