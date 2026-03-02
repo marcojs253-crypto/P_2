@@ -1,14 +1,20 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import importlib
 
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 
-import tensorflow as tf
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense
-from tensorflow.keras.optimizers import Adam
+try:
+    tf = importlib.import_module("tensorflow")
+    keras_api = tf.keras
+except ImportError:
+    keras_api = importlib.import_module("keras")
+
+Sequential = keras_api.Sequential
+Dense = keras_api.layers.Dense
+Adam = keras_api.optimizers.Adam
 
 # ----------------------------
 # 1. LOAD TRAINING DATA
