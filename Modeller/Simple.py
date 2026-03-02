@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import importlib
 
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 
@@ -19,7 +20,7 @@ Adam = keras_api.optimizers.Adam
 # ----------------------------
 # 1. LOAD TRAINING DATA
 # ----------------------------
-train_path = "https://raw.githubusercontent.com/marcojs253-crypto/P_2/refs/heads/main/Training.csv"
+train_path = "Training.csv"
 df_train = pd.read_csv(train_path)
 
 if "filnavn" in df_train.columns:
@@ -28,11 +29,11 @@ if "filnavn" in df_train.columns:
 # ----------------------------
 # 2. FEATURES & TARGET
 # ----------------------------
-X_train = df_train.drop(columns=["target"])
-y_train = df_train["target"]
+X = df_train.drop(columns=["target"])
+y = df_train["target"]
 
 label_encoder = LabelEncoder()
-y_train_encoded = label_encoder.fit_transform(y_train)
+y_encoded = label_encoder.fit_transform(y)
 
 print("Klasse mapping:")
 for i, class_name in enumerate(label_encoder.classes_):
@@ -40,12 +41,23 @@ for i, class_name in enumerate(label_encoder.classes_):
 
 # Skalering (VIGTIGT for neural networks)
 scaler = StandardScaler()
-X_train_scaled = scaler.fit_transform(X_train)
+X_scaled = scaler.fit_transform(X)
 
 # ----------------------------
-# 3. BUILD NEURAL NETWORK
+# 3. TRAIN / VALIDATION SPLIT (80/20)
 # ----------------------------
-input_dim = X_train_scaled.shape[1]
+X_train, X_val, y_train, y_val = train_test_split(
+    X_scaled,
+    y_encoded,
+    test_size=0.2,
+    random_state=42,
+    stratify=y_encoded
+)
+
+# ----------------------------
+# 4. BUILD NEURAL NETWORK
+# ----------------------------
+input_dim = X_train.shape[1]
 num_classes = len(label_encoder.classes_)
 
 model = Sequential()
@@ -77,18 +89,19 @@ model.compile(
 )
 
 # ----------------------------
-# 4. TRAIN MODEL (på hele training data)
+# 5. TRAIN MODEL (med validation)
 # ----------------------------
 history = model.fit(
-    X_train_scaled,
-    y_train_encoded,
+    X_train,
+    y_train,
     epochs=50,
     batch_size=32,
+    validation_data=(X_val, y_val),
     verbose=1
 )
 
 # ----------------------------
-# 5. LOAD TEST DATA
+# 6. LOAD TEST DATA
 # ----------------------------
 test_path = "https://raw.githubusercontent.com/marcojs253-crypto/P_2/refs/heads/main/Validering.csv"
 df_test = pd.read_csv(test_path)
@@ -99,7 +112,7 @@ if "filnavn" in df_test.columns:
 X_test = df_test.drop(columns=["target"])
 y_test = df_test["target"]
 
-# Brug samme encoder og scaler!
+# Brug samme encoder og scaler
 y_test_encoded = label_encoder.transform(y_test)
 X_test_scaled = scaler.transform(X_test)
 
@@ -107,7 +120,7 @@ print("\nUnikke targets i test:", np.unique(y_test_encoded))
 print("Antal prøver pr. klasse:", np.bincount(y_test_encoded))
 
 # ----------------------------
-# 6. TEST EVALUATION
+# 7. TEST EVALUATION
 # ----------------------------
 y_test_pred = np.argmax(model.predict(X_test_scaled), axis=1)
 
@@ -118,10 +131,11 @@ print("\nConfusion Matrix (Test):")
 print(confusion_matrix(y_test_encoded, y_test_pred))
 
 # ----------------------------
-# 7. TRAINING CURVE
+# 8. TRAINING CURVE
 # ----------------------------
 plt.figure(figsize=(10,5))
 plt.plot(history.history["accuracy"], label="Training Accuracy")
+plt.plot(history.history["val_accuracy"], label="Validation Accuracy")
 plt.title("Training Curve (Neural Network)")
 plt.legend()
 plt.show()
