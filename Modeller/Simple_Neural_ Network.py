@@ -130,3 +130,27 @@ plt.plot(history.history["val_accuracy"], label="Validation Accuracy")
 plt.title("Training Curve (Neural Network)")
 plt.legend()
 plt.show()
+
+# ----------------------------
+# 8. FEATURE IMPORTANCE
+# ----------------------------
+feature_names = X.columns
+
+# Brug gennemsnitlig absolut vægt i første layer som feature-importance
+first_layer_weights = model.layers[0].get_weights()[0]
+importances = np.mean(np.abs(first_layer_weights), axis=1)
+
+# Sorter features efter importance
+indices = np.argsort(importances)[::-1]
+
+plt.figure(figsize=(12, 8))
+plt.title("Feature Importance (Neural Network)")
+plt.bar(range(len(importances)), importances[indices])
+plt.xticks(range(len(importances)), feature_names[indices], rotation=90)
+plt.tight_layout()
+plt.show()
+
+# Print top 15 vigtigste features
+print("\nTop 15 vigtigste features:")
+for i in indices[:15]:
+    print(f"{feature_names[i]}: {importances[i]:.4f}")
