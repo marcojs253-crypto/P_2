@@ -3,8 +3,12 @@ import numpy as np
 import librosa
 from pathlib import Path
 from datetime import datetime
+import re  # Til regex
 
-datasæt_lyd = Path("/Users/jonassvirkaer/Desktop/Training")
+# -----------------------------
+# Paths
+# -----------------------------
+datasæt_lyd = Path("/Users/lasseleekrogshave/Desktop/Uni/Semester 2/Gruppeprojekt P2/Projekt-kode/NY Data/Speach_augmented/Test")
 alle_wav_files = sorted(datasæt_lyd.rglob("*.wav"))  # finder også i undermapper
 
 print(f"Finder wav-filer i: {datasæt_lyd}")
@@ -16,7 +20,7 @@ print("Første 5 filer:")
 for w in alle_wav_files[:5]:
     print(" -", w.name)
 
-noise_labels = ["GreenNoise", "BrownNoise", "NoNoise", "WhiteNoise", "PinkNoise"]
+noise_labels = ["BlueNoise", "BrownNoise", "Clean", "WhiteNoise", "PinkNoise", "VioletNoise"]
 
 wav_liste = []
 fejl_filer = []
@@ -37,12 +41,10 @@ for wav in alle_wav_files:
         bandwidth = librosa.feature.spectral_bandwidth(S=S, sr=sr)
         rolloff = librosa.feature.spectral_rolloff(S=S, sr=sr, roll_percent=0.85)
         flatness = librosa.feature.spectral_flatness(S=S)
-
         zcr = librosa.feature.zero_crossing_rate(y)
         rms = librosa.feature.rms(y=y)
         flux = librosa.onset.onset_strength(y=y, sr=sr)
         contrast = librosa.feature.spectral_contrast(S=S, sr=sr)
-
         mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
 
         y_harmonic = librosa.effects.harmonic(y)
@@ -51,18 +53,27 @@ for wav in alle_wav_files:
         noise_energy = np.sum(y_percussive ** 2)
         hnr = harmonic_energy / (noise_energy + 1e-10)
 
-        # --- label fra filnavn ---
+        # --- label og metadata fra filnavn ---
         filename_lower = wav.stem.lower()
+
+        # label
         label_found = "Unknown"
         for label in noise_labels:
             if label.lower() in filename_lower:
                 label_found = label
                 break
-
-        # Debug: hvis den ikke finder label, print filnavnet
         if label_found == "Unknown":
             print(f"⚠️ Ingen label fundet i filnavn: {wav.name}")
 
+        # beta og SNR
+        beta_match = re.search(r"beta([-\d.]+)", filename_lower)
+        snr_match = re.search(r"snr([-\d.]+)", filename_lower)
+        beta_value = float(beta_match.group(1)) if beta_match else None
+        snr_value = float(snr_match.group(1)) if snr_match else None
+        if beta_value is None or snr_value is None:
+            print(f"⚠️ Ingen beta/SNR fundet i filnavn: {wav.name}")
+
+        # --- saml row ---
         row = {
             "filnavn": wav.name,
             "centroid_mean": float(np.mean(centroid)),
@@ -82,21 +93,24 @@ for wav in alle_wav_files:
             "contrast_mean": float(np.mean(contrast)),
             "contrast_std": float(np.std(contrast)),
             "hnr": float(hnr),
+            "target": label_found,
+            "beta": beta_value,
+            "snr_db": snr_value,
         }
 
+        # MFCC
         for i in range(13):
             row[f"mfcc{i+1}_mean"] = float(np.mean(mfcc[i]))
             row[f"mfcc{i+1}_std"] = float(np.std(mfcc[i]))
 
-        row["target"] = label_found
         wav_liste.append(row)
 
     except Exception as e:
         fejl_filer.append((wav.name, str(e)))
         print(f"❌ Fejl i {wav.name}: {e}")
 
+# --- gem til CSV ---
 df_files = pd.DataFrame(wav_liste)
-
 timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 output_path = datasæt_lyd / f"audio_features_dataset_{timestamp}.csv"
 df_files.to_csv(output_path, index=False)
