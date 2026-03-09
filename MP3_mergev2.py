@@ -9,13 +9,15 @@ import random as rand
 # -----------------------------
 BASE_DIR = r"C:\Audio\Speach"
 OUTPUT_DIR = r"C:\Audio\Speach_augmented"
-SPLITS = ['Training', 'Test', 'Validation']  # ASCII folder names
+
+SPLITS = ['Training', 'Test', 'Validation']
+
 NOISE_RANGES = {
-    'WhiteNoise': (-0.3, 0.3),
-    'PinkNoise': (0.7, 1.3),
-    'BrownNoise': (1.7, 2.3),
-    'BlueNoise': (-1.3, -0.7),
-    'VioletNoise': (-1.7, 2.3)
+    'WhiteNoise': (-0.1, 0.1),
+    'PinkNoise': (0.9, 1.1),
+    'BrownNoise': (1.9, 2.1),
+    'BlueNoise': (-1.1, -0.9),
+    'VioletNoise': (-2.1, -1.9)
 }
 
 # -----------------------------
@@ -28,52 +30,60 @@ def add_colored_noise(signal, beta, snr_db):
     noise_power = np.mean(noise ** 2)
     k = np.sqrt(signal_power / (noise_power * 10 ** (snr_db / 10)))
     noisy_signal = signal + noise * k
-    return np.clip(noisy_signal, -1.0, 1.0)
+    return noisy_signal  # no clipping for distortion
 
 # -----------------------------
 # Create output directories
 # -----------------------------
 for split in SPLITS:
     for noise_name in list(NOISE_RANGES.keys()) + ['Clean']:
-        dir_path = os.path.join(OUTPUT_DIR, split, noise_name)
-        os.makedirs(dir_path, exist_ok=True)
+        out_dir = os.path.join(OUTPUT_DIR, split, noise_name)
+        os.makedirs(out_dir, exist_ok=True)
 
 # -----------------------------
-# Process files
+# Process dataset
 # -----------------------------
 for split in SPLITS:
     split_dir = os.path.join(BASE_DIR, split)
+
     for folder_name in os.listdir(split_dir):
         folder_path = os.path.join(split_dir, folder_name)
         if not os.path.isdir(folder_path):
             continue
 
-        files = sorted([f for f in os.listdir(folder_path) if f.endswith('.wav')])
+        files = sorted([f for f in os.listdir(folder_path) if f.endswith(".wav")])
 
         for idx, file_name in enumerate(files, start=1):
             file_path = os.path.join(folder_path, file_name)
+
+            # -----------------------------
+            # Load audio
+            # -----------------------------
             signal, samplerate = sf.read(file_path)
             signal = signal.astype(np.float32)
 
             # -----------------------------
-            # Clean copy
+            # Save clean audio
             # -----------------------------
             if folder_name.lower() in ['støjfri', 'clean']:
                 out_file_name = f"Clean_{idx:03d}.wav"
-                out_path = os.path.join(OUTPUT_DIR, split, 'Clean', out_file_name)
+                out_path = os.path.join(OUTPUT_DIR, split, "Clean", out_file_name)
                 sf.write(out_path, signal, samplerate)
                 continue
 
             # -----------------------------
-            # Generate noisy versions
+            # Create noisy versions (one per noise type)
             # -----------------------------
             for noise_name, beta_range in NOISE_RANGES.items():
-                beta = rand.uniform(*beta_range)  # vary color per file
-                snr_db = rand.uniform(1.0, 20.0)  # vary SNR per file
+                beta = rand.uniform(*beta_range)
+                snr_db = rand.uniform(-5.0, 20.0)
+
                 noisy_signal = add_colored_noise(signal, beta, snr_db)
 
-                out_file_name = f"{noise_name}_{idx:03d}.wav"
+                # filename includes beta and SNR
+                out_file_name = f"{noise_name}_beta{beta:.2f}_snr{snr_db:.2f}_{idx:03d}.wav"
                 out_path = os.path.join(OUTPUT_DIR, split, noise_name, out_file_name)
+
                 sf.write(out_path, noisy_signal, samplerate)
 
-print("All samples processed and saved in", OUTPUT_DIR)
+print("All samples processed and saved in:", OUTPUT_DIR)
