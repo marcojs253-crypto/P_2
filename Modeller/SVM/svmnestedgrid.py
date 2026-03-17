@@ -6,12 +6,12 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-from sklearn.model_selection import StratifiedKFold, GridSearchCV, cross_val_score
+from sklearn.model_selection import StratifiedKFold, GridSearchCV
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 from sklearn.svm import SVC
 
-import shap  # SHAP til feature importance
+import shap  # SHAP
 
 # ============================================================
 # 1. CONFIGURATION
@@ -24,8 +24,8 @@ TARGET_COLUMN = "target"
 IRRELEVANT_COLUMNS = ["filnavn", "beta", "snr_db"]
 TARGET_CLASSES = ["BlueNoise", "BrownNoise", "Clean", "PinkNoise", "VioletNoise", "WhiteNoise"]
 
-N_SPLITS_OUTER = 5  # Ydre CV fold
-N_SPLITS_INNER = 5  # Indre CV fold for GridSearch
+N_SPLITS_OUTER = 5
+N_SPLITS_INNER = 5
 RANDOM_STATE = 42
 
 PARAM_GRID = {
@@ -36,7 +36,7 @@ PARAM_GRID = {
 }
 
 # ============================================================
-# 2. LOAD & CLEAN DATA
+# 2. LOAD DATA
 # ============================================================
 
 def load_data(path):
@@ -47,18 +47,14 @@ def load_data(path):
     return df
 
 # ============================================================
-# 3. PREPARE FEATURES & LABELS
+# 3. PREPARE DATA
 # ============================================================
 
 def prepare_features(df):
     X = df.drop(columns=[TARGET_COLUMN])
     y = df[TARGET_COLUMN]
 
-    # Encode target labels
     class_mapping = {name: idx for idx, name in enumerate(TARGET_CLASSES)}
-    unknown_labels = sorted(set(y.unique()) - set(class_mapping.keys()))
-    if unknown_labels:
-        raise ValueError(f"Unknown classes: {unknown_labels}")
     y_encoded = y.map(class_mapping).astype(int)
 
     label_encoder = LabelEncoder()
@@ -67,7 +63,7 @@ def prepare_features(df):
     return X, y_encoded, label_encoder
 
 # ============================================================
-# 4. SCALE FEATURES
+# 4. SCALING
 # ============================================================
 
 def scale_features(X_train, X_val):
@@ -77,83 +73,98 @@ def scale_features(X_train, X_val):
     return X_train_s, X_val_s, scaler
 
 # ============================================================
-# 5. NESTED GRIDSEARCH
+# 5. NESTED CV (EVALUERING)
 # ============================================================
 
-def nested_grid_search(X, y, param_grid):
-    """
-    Ydre CV for performance estimation
-    Indre CV (GridSearch) for hyperparameter tuning
-    """
+def nested_cv_evaluation(X, y, param_grid):
     outer_cv = StratifiedKFold(n_splits=N_SPLITS_OUTER, shuffle=True, random_state=RANDOM_STATE)
     inner_cv = StratifiedKFold(n_splits=N_SPLITS_INNER, shuffle=True, random_state=RANDOM_STATE)
 
     outer_scores = []
 
-    fold_num = 1
-    for train_idx, val_idx in outer_cv.split(X, y):
-        print(f"\n=== Outer Fold {fold_num} ===")
+    for fold, (train_idx, val_idx) in enumerate(outer_cv.split(X, y), 1):
+        print(f"\n=== Outer Fold {fold} ===")
+
         X_train, X_val = X.iloc[train_idx], X.iloc[val_idx]
         y_train, y_val = y.iloc[train_idx], y.iloc[val_idx]
 
-        # Scale
-        X_train_s, X_val_s, scaler = scale_features(X_train, X_val)
+        X_train_s, X_val_s, _ = scale_features(X_train, X_val)
 
-        # Inner GridSearch
-        model = SVC(max_iter=-1, probability=True, random_state=RANDOM_STATE)
         grid = GridSearchCV(
-            estimator=model,
-            param_grid=param_grid,
+            SVC(probability=True, random_state=RANDOM_STATE),
+            param_grid,
             scoring="accuracy",
             cv=inner_cv,
             n_jobs=-1
         )
+
         grid.fit(X_train_s, y_train)
+
+        print("Best params:", grid.best_params_)
+
         best_model = grid.best_estimator_
 
-        print("Best params (inner GridSearch):", grid.best_params_)
+        y_pred = best_model.predict(X_val_s)
+        acc = accuracy_score(y_val, y_pred)
 
-        # Evaluer på ydre fold
-        y_val_pred = best_model.predict(X_val_s)
-        acc = accuracy_score(y_val, y_val_pred)
-        print("Outer Fold Accuracy:", acc)
+        print("Outer Accuracy:", acc)
         outer_scores.append(acc)
 
-        fold_num += 1
-
-    mean_outer = np.mean(outer_scores)
-    std_outer = np.std(outer_scores)
-    print("\n=== Nested CV Results ===")
-    print(f"Mean accuracy: {mean_outer:.3f} ± {std_outer:.3f}")
-
-    # Til sidst, træner bedste model på hele dataset med bedste parametre fra sidste fold
-    X_full_s, _, scaler_full = scale_features(X, X)  # fit på hele datasættet
-    best_model.fit(X_full_s, y)  # træner model på hele datasættet
-    return best_model, scaler_full
+    print("\n=== Nested CV Result ===")
+    print(f"Mean accuracy: {np.mean(outer_scores):.3f} ± {np.std(outer_scores):.3f}")
 
 # ============================================================
-# 6. EVALUATION
+# 6. FINAL MODEL (KORREKT)
 # ============================================================
 
-def evaluate_model(model, X_val, y_val, label_encoder):
-    y_pred = model.predict(X_val)
-    print("\n=== EVALUATION RESULTS ===")
-    print("Accuracy:", accuracy_score(y_val, y_pred))
+def train_final_model(X, y, param_grid):
+    print("\n=== TRAINING FINAL MODEL ===")
+
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    grid = GridSearchCV(
+        SVC(probability=True, random_state=RANDOM_STATE),
+        param_grid,
+        scoring="accuracy",
+        cv=5,
+        n_jobs=-1
+    )
+
+    grid.fit(X_scaled, y)
+
+    print("Final best params:", grid.best_params_)
+
+    best_model = grid.best_estimator_
+
+    return best_model, scaler
+
+# ============================================================
+# 7. EVALUATION
+# ============================================================
+
+def evaluate_model(model, scaler, X, y, label_encoder):
+    X_scaled = scaler.transform(X)
+    y_pred = model.predict(X_scaled)
+
+    print("\n=== TEST RESULTS ===")
+    print("Accuracy:", accuracy_score(y, y_pred))
     print("\nClassification Report:")
-    print(classification_report(y_val, y_pred, target_names=label_encoder.classes_))
+    print(classification_report(y, y_pred, target_names=label_encoder.classes_))
     print("Confusion Matrix:")
-    print(confusion_matrix(y_val, y_pred))
-    return y_pred
+    print(confusion_matrix(y, y_pred))
+
+    return X_scaled, y_pred
 
 # ============================================================
-# 7. SHAP FEATURE IMPORTANCE (med gemmefunktion)
+# 8. SHAP FEATURE IMPORTANCE (DIN VERSION + FIX)
 # ============================================================
 
 def shap_feature_importance(model, X_train, X_val, feature_names, save_path="Modeller/SVM/shap_feature_importance2.png"):
-    # Brug et lille sample til SHAP for hastighed
+    print("\n=== SHAP FEATURE IMPORTANCE ===")
+
     X_sample = X_train[:100]
 
-    # KernelExplainer virker for SVM
     explainer = shap.KernelExplainer(model.predict, X_sample)
     shap_values = explainer.shap_values(X_val[:50])
 
@@ -166,31 +177,39 @@ def shap_feature_importance(model, X_train, X_val, feature_names, save_path="Mod
     plt.title("SHAP Feature Importance (SVM)")
     plt.tight_layout()
     plt.savefig(save_path, dpi=300)
-    print(f"SHAP feature importance plot saved as: {save_path}")
+
+    print(f"SHAP plot saved as: {save_path}")
     plt.show()
+
     return importance
 
 # ============================================================
-# 8. MAIN SCRIPT
+# 9. MAIN
 # ============================================================
 
 if __name__ == "__main__":
 
-    # Load data
     df_train = load_data(DATA_PATH_TRAIN)
     df_test  = load_data(DATA_PATH_TEST)
 
-    # Prepare features
     X_train, y_train, label_encoder = prepare_features(df_train)
-    X_test,  y_test,  _            = prepare_features(df_test)
+    X_test,  y_test,  _ = prepare_features(df_test)
 
-    # Nested GridSearch på træningsdata
-    best_model, scaler_full = nested_grid_search(X_train, y_train, PARAM_GRID)
+    # 1. Nested CV (kun evaluering)
+    nested_cv_evaluation(X_train, y_train, PARAM_GRID)
 
-    # Evaluer på validation og test set
-    X_val_s = scaler_full.transform(X_test)
-    evaluate_model(best_model, X_val_s, y_test, label_encoder)
+    # 2. Final model
+    best_model, scaler = train_final_model(X_train, y_train, PARAM_GRID)
 
-    # SHAP feature importance
-    X_train_s, _, _ = scale_features(X_train, X_train)
-    shap_feature_importance(best_model, X_train_s, X_val_s, X_train.columns)
+    # 3. Evaluation
+    X_test_scaled, _ = evaluate_model(best_model, scaler, X_test, y_test, label_encoder)
+
+    # 4. SHAP (FIXET: bruger samme scaler)
+    X_train_scaled = scaler.transform(X_train)
+
+    shap_feature_importance(
+        best_model,
+        X_train_scaled,
+        X_test_scaled,
+        X_train.columns
+    )

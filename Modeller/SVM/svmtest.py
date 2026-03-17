@@ -34,7 +34,6 @@ PARAM_GRID = {
     "kernel": ["linear", "rbf"],
     "gamma": ["scale", "auto"],
     "class_weight": [None, "balanced"],
-    "max_iter": [500, 1000, -1]  # -1 means no limit
 }
 
 # ============================================================
@@ -93,7 +92,7 @@ def scale_features(X_train, X_val):
 
 def train_model_gridsearch(X_train, y_train):
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
-    model = SVC(class_weight="balanced", probability=True, random_state=RANDOM_STATE)
+    model = SVC(max_iter=-1, probability=True, random_state=RANDOM_STATE)
 
     grid = GridSearchCV(
         estimator=model,
@@ -129,7 +128,7 @@ def evaluate_model(model, X_val, y_val, label_encoder):
 # 8. SHAP FEATURE IMPORTANCE (med gemmefunktion)
 # ============================================================
 
-def shap_feature_importance(model, X_train, X_val, feature_names, save_path="shap_feature_importance.png"):
+def shap_feature_importance(model, X_train, X_val, feature_names, save_path="Modeller/SVM/shap_feature_importance.png"):
     """
     Beregner SHAP værdier og plotter global feature importance.
     Gemmer figuren til fil.
@@ -196,7 +195,7 @@ if __name__ == "__main__":
         X_train_s,
         X_val_s,
         X_train.columns,
-        save_path="shap_feature_importance.png"
+        save_path="Modeller/SVM/shap_feature_importance.png"
     )
 
     # --- Evaluate on test set
