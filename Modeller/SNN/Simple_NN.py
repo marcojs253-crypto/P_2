@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-from sklearn.model_selection import train_test_split, StratifiedKFold, GridSearchCV
+from sklearn.model_selection import StratifiedKFold, GridSearchCV
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 from sklearn.neural_network import MLPClassifier
@@ -37,7 +37,7 @@ class_mapping = {name: idx for idx, name in enumerate(target_names)}
 y_encoded = y.map(class_mapping).astype(int)
 
 # ============================================================
-# 🔴 IMPORTANT: SCALE FEATURES (VERY IMPORTANT FOR NN)
+# 3. SCALE FEATURES (VERY IMPORTANT FOR NN)
 # ============================================================
 scaler = StandardScaler()
 X_scaled = pd.DataFrame(
@@ -45,12 +45,9 @@ X_scaled = pd.DataFrame(
     columns=X.columns
 )
 
-# ============================================================
-# 3. TRAIN / VALIDATION SPLIT
-# ============================================================
-X_train, X_val, y_train, y_val = train_test_split(
-    X_scaled, y_encoded, test_size=0.20, stratify=y_encoded, random_state=42
-)
+# Brug hele træningsdatasættet til 5-fold CV
+X_train = X_scaled.copy()
+y_train = y_encoded.copy()
 
 # ============================================================
 # 4. 5-FOLD CV + GRID SEARCH (NEURAL NETWORK)
@@ -125,6 +122,8 @@ X_test_scaled = pd.DataFrame(
     columns=X.columns
 )
 y_test_encoded = y_test.map(class_mapping).astype(int)
+X_val = X_test_scaled.copy()
+y_val = y_test_encoded.copy()
 y_test_pred = model.predict(X_test_scaled)
 
 print(f"\nExternal Validation Accuracy: {accuracy_score(y_test_encoded, y_test_pred):.4f}")
@@ -137,7 +136,7 @@ print(confusion_matrix(y_test_encoded, y_test_pred))
 from sklearn.inspection import permutation_importance
 
 # ----------------------------
-# 4. FEATURE IMPORTANCE (NN)
+# 6. FEATURE IMPORTANCE (NN)
 # ----------------------------
 
 # Beregn permutation importance på validation data
@@ -175,7 +174,7 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import StandardScaler
 
 # ----------------------------
-# 5. FEATURE SELECTION (NN)
+# 7. FEATURE SELECTION (NN)
 # ----------------------------
 
 # Baseline prediction fra den bedste model
