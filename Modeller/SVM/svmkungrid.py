@@ -5,6 +5,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import joblib
 
 from sklearn.model_selection import GridSearchCV
 from sklearn.preprocessing import LabelEncoder, StandardScaler
@@ -68,8 +69,9 @@ def train_model_with_gridsearch(X, y, param_grid):
     print("\n=== TRAINING WITH GRIDSEARCH ===")
 
     scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-
+    scaler.fit(X)
+    joblib.dump(scaler, "svm_scaler.pkl")
+    X_scaled = scaler.transform(X)
     grid = GridSearchCV(
         SVC(probability=True, random_state=RANDOM_STATE),
         param_grid,
