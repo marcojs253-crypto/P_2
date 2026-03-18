@@ -137,13 +137,17 @@ def shap_feature_importance(model, X_train, X_val, feature_names, save_path="Mod
     X_sample = X_train[:100]
 
     # KernelExplainer virker for SVM
-    explainer = shap.KernelExplainer(model.predict, X_sample)
+    explainer = shap.KernelExplainer(model.predict_proba, X_sample)
 
     # SHAP values for validation sample
     shap_values = explainer.shap_values(X_val[:50])
 
     # Global feature importance
     mean_abs_shap = np.mean(np.abs(shap_values), axis=0)
+
+# Hvis multi-class → reducer over klasser
+    if len(mean_abs_shap.shape) > 1:
+        mean_abs_shap = mean_abs_shap.mean(axis=1)
     importance = pd.Series(mean_abs_shap, index=feature_names).sort_values(ascending=False)
 
     # Plot
