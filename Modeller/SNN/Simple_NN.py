@@ -100,17 +100,39 @@ for i, score in enumerate(best_fold_scores, start=1):
 print(f"Mean af fold accuracies: {np.mean(best_fold_scores):.4f}")
 
 # ============================================================
-# 5. VALIDATION
+# 5. TEST ON SEPARATE DATASET
 # ============================================================
 model = search.best_estimator_
-y_val_pred = model.predict(X_val)
 
-print(f"\nValidation Accuracy: {accuracy_score(y_val, y_val_pred):.4f}")
-print("\nClassification Report (Validation):")
-print(classification_report(y_val, y_val_pred, target_names=target_names, digits=4))
+test_path = "https://raw.githubusercontent.com/marcojs253-crypto/P_2/refs/heads/main/Data/ValidationData.csv"
+df_test = pd.read_csv(test_path)
 
-print("\nConfusion Matrix (Validation):")
-print(confusion_matrix(y_val, y_val_pred))
+for col in irrelevant_cols:
+    if col in df_test.columns:
+        df_test = df_test.drop(columns=[col])
+
+X_test = df_test.drop(columns=["target"])
+y_test = df_test["target"]
+
+unknown_test_labels = sorted(set(y_test.unique()) - set(class_mapping.keys()))
+if unknown_test_labels:
+    raise ValueError(f"Ukendte klasser i test target: {unknown_test_labels}")
+
+# Match feature order to training data before scaling.
+X_test = X_test.reindex(columns=X.columns, fill_value=0)
+X_test_scaled = pd.DataFrame(
+    scaler.transform(X_test),
+    columns=X.columns
+)
+y_test_encoded = y_test.map(class_mapping).astype(int)
+y_test_pred = model.predict(X_test_scaled)
+
+print(f"\nExternal Validation Accuracy: {accuracy_score(y_test_encoded, y_test_pred):.4f}")
+print("\nClassification Report (External Validation):")
+print(classification_report(y_test_encoded, y_test_pred, target_names=target_names, digits=4))
+
+print("\nConfusion Matrix (External Validation):")
+print(confusion_matrix(y_test_encoded, y_test_pred))
 
 from sklearn.inspection import permutation_importance
 
@@ -155,6 +177,9 @@ from sklearn.preprocessing import StandardScaler
 # ----------------------------
 # 5. FEATURE SELECTION (NN)
 # ----------------------------
+
+# Baseline prediction fra den bedste model
+y_val_pred = model.predict(X_val)
 
 baseline_val_acc = accuracy_score(y_val, y_val_pred)
 
