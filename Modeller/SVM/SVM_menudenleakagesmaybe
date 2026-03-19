@@ -104,14 +104,22 @@ def evaluate_model(model, scaler, X, y, label_encoder):
 # 6. SHAP FEATURE IMPORTANCE
 # ============================================================
 
-def shap_feature_importance(model, X_train, X_val, feature_names):
+def shap_feature_importance(
+    model,
+    X_train,
+    X_val,
+    feature_names,
+    save_path="Modeller/SVM/shap_feature_importance_udenleak.png"
+):
     print("\n=== SHAP FEATURE IMPORTANCE ===")
 
+    # Brug en lille sample for speed
     X_sample = X_train[:100]
 
     explainer = shap.KernelExplainer(model.predict_proba, X_sample)
     shap_values = explainer.shap_values(X_val[:50])
 
+    # Beregn mean |SHAP|
     mean_abs_shap = np.mean(np.abs(shap_values), axis=0)
 
     if len(mean_abs_shap.shape) > 1:
@@ -119,19 +127,45 @@ def shap_feature_importance(model, X_train, X_val, feature_names):
 
     importance = pd.Series(mean_abs_shap, index=feature_names).sort_values(ascending=False)
 
+    # ============================================================
+    # 🔥 PLOT (BAR CHART)
+    # ============================================================
+    plt.figure(figsize=(12,6))
+    plt.bar(importance.index, importance.values)
+    plt.xticks(rotation=90)
+    plt.title("SHAP Feature Importance (SVM)")
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=300)
+    plt.show()
+
+    print(f"SHAP plot saved to: {save_path}")
+
     return importance
 
 # ============================================================
 # FEATURE SELECTION
 # ============================================================
 
-def select_features_cumulative(importance, cutoff=0.90):
+def select_features_cumulative(importance, cutoff=0.95):
     normalized = importance / importance.sum()
     cumulative = normalized.cumsum()
     selected = cumulative[cumulative <= cutoff].index.tolist()
 
     print(f"\nSelected {len(selected)} / {len(importance)} features")
     return selected
+def plot_selected_features(importance, selected_features, save_path="Modeller/SVM/selected_features_udenleak.png"):
+    """
+    Visualiserer de valgte features (grøn) vs. uvalgte (rød)
+    """
+    colors = ["green" if f in selected_features else "red" for f in importance.index]
+
+    plt.figure(figsize=(12,6))
+    plt.bar(importance.index, importance.values, color=colors)
+    plt.xticks(rotation=90)
+    plt.title("SHAP Feature Importance (Green = Selected, Red = Dropped)")
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=300)
+    plt.show()
 
 # ============================================================
 # 7. MAIN
@@ -184,7 +218,9 @@ if __name__ == "__main__":
     # ============================================================
     # STEP 3: FEATURE SELECTION
     # ============================================================
-    selected_features = select_features_cumulative(importance, cutoff=0.90)
+    selected_features = select_features_cumulative(importance, cutoff=0.95)
+
+    plot_selected_features(importance, selected_features)
 
     print(f"Original features: {X_train.shape[1]}")
     print(f"Selected features: {len(selected_features)}")
