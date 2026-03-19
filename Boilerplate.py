@@ -108,3 +108,7 @@ print("\nClassification Report:")
 print(classification_report(y_test, y_test_pred, target_names=label_encoder.classes_))
 print("Confusion Matrix:")
 print(confusion_matrix(y_test, y_test_pred))
+
+
+
+
