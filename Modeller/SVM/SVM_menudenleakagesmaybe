@@ -7,12 +7,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import joblib
 
-from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 from sklearn.svm import SVC
 
-import shap  # SHAP
+import shap
 
 # ============================================================
 # 1. CONFIGURATION
@@ -62,16 +62,15 @@ def prepare_features(df):
     return X, y_encoded, label_encoder
 
 # ============================================================
-# 4. TRAIN MODEL (KUN GRIDSEARCH)
+# 4. TRAIN MODEL
 # ============================================================
 
 def train_model_with_gridsearch(X, y, param_grid):
     print("\n=== TRAINING WITH GRIDSEARCH ===")
 
     scaler = StandardScaler()
-    scaler.fit(X)
-    joblib.dump(scaler, "svm_scaler.pkl")
-    X_scaled = scaler.transform(X)
+    X_scaled = scaler.fit_transform(X)
+
     grid = GridSearchCV(
         SVC(probability=True, random_state=RANDOM_STATE),
         param_grid,
@@ -95,20 +94,17 @@ def evaluate_model(model, scaler, X, y, label_encoder):
     X_scaled = scaler.transform(X)
     y_pred = model.predict(X_scaled)
 
-    print("\n=== TEST RESULTS ===")
-    print("Accuracy:", accuracy_score(y, y_pred))
+    print("\nAccuracy:", accuracy_score(y, y_pred))
     print("\nClassification Report:")
     print(classification_report(y, y_pred, target_names=label_encoder.classes_))
     print("Confusion Matrix:")
     print(confusion_matrix(y, y_pred))
 
-    return X_scaled, y_pred
-
 # ============================================================
 # 6. SHAP FEATURE IMPORTANCE
 # ============================================================
 
-def shap_feature_importance(model, X_train, X_val, feature_names, save_path="Modeller/SVM/shap_feature_importance3.png"):
+def shap_feature_importance(model, X_train, X_val, feature_names):
     print("\n=== SHAP FEATURE IMPORTANCE ===")
 
     X_sample = X_train[:100]
@@ -123,17 +119,19 @@ def shap_feature_importance(model, X_train, X_val, feature_names, save_path="Mod
 
     importance = pd.Series(mean_abs_shap, index=feature_names).sort_values(ascending=False)
 
-    plt.figure(figsize=(12,6))
-    plt.bar(importance.index, importance.values)
-    plt.xticks(rotation=90)
-    plt.title("SHAP Feature Importance (SVM)")
-    plt.tight_layout()
-    plt.savefig(save_path, dpi=300)
-
-    print(f"SHAP plot saved as: {save_path}")
-    plt.show()
-
     return importance
+
+# ============================================================
+# FEATURE SELECTION
+# ============================================================
+
+def select_features_cumulative(importance, cutoff=0.90):
+    normalized = importance / importance.sum()
+    cumulative = normalized.cumsum()
+    selected = cumulative[cumulative <= cutoff].index.tolist()
+
+    print(f"\nSelected {len(selected)} / {len(importance)} features")
+    return selected
 
 # ============================================================
 # 7. MAIN
@@ -141,24 +139,79 @@ def shap_feature_importance(model, X_train, X_val, feature_names, save_path="Mod
 
 if __name__ == "__main__":
 
+    # Load data
     df_train = load_data(DATA_PATH_TRAIN)
     df_test  = load_data(DATA_PATH_TEST)
 
     X_train, y_train, label_encoder = prepare_features(df_train)
     X_test,  y_test,  _ = prepare_features(df_test)
 
-    # 1. Train model med GridSearch
-    best_model, scaler = train_model_with_gridsearch(X_train, y_train, PARAM_GRID)
+    # ============================================================
+    # SPLIT TRAIN → TRAIN + VALIDATION
+    # ============================================================
+    X_train_inner, X_val, y_train_inner, y_val = train_test_split(
+        X_train,
+        y_train,
+        test_size=0.2,
+        random_state=RANDOM_STATE,
+        stratify=y_train
+    )
 
-    # 2. Evaluation
-    X_test_scaled, _ = evaluate_model(best_model, scaler, X_test, y_test, label_encoder)
+    # ============================================================
+    # STEP 1: GRIDSEARCH (TRAIN ONLY)
+    # ============================================================
+    print("\n########## STEP 1: TRAIN MODEL ##########")
 
-    # 3. SHAP
-    X_train_scaled = scaler.transform(X_train)
+    model_all, scaler_all = train_model_with_gridsearch(
+        X_train_inner,
+        y_train_inner,
+        PARAM_GRID
+    )
 
-    shap_feature_importance(
-        best_model,
-        X_train_scaled,
-        X_test_scaled,
-        X_train.columns
+    # ============================================================
+    # STEP 2: SHAP (VALIDATION ONLY)
+    # ============================================================
+    X_train_inner_scaled = scaler_all.transform(X_train_inner)
+    X_val_scaled = scaler_all.transform(X_val)
+
+    importance = shap_feature_importance(
+        model_all,
+        X_train_inner_scaled,
+        X_val_scaled,
+        X_train_inner.columns
+    )
+
+    # ============================================================
+    # STEP 3: FEATURE SELECTION
+    # ============================================================
+    selected_features = select_features_cumulative(importance, cutoff=0.90)
+
+    print(f"Original features: {X_train.shape[1]}")
+    print(f"Selected features: {len(selected_features)}")
+
+    # ============================================================
+    # STEP 4: FINAL MODEL (TRAIN ON ALL TRAIN DATA)
+    # ============================================================
+    X_train_selected = X_train[selected_features]
+    X_test_selected  = X_test[selected_features]
+
+    print("\n########## STEP 4: FINAL MODEL ##########")
+
+    model_final, scaler_final = train_model_with_gridsearch(
+        X_train_selected,
+        y_train,
+        PARAM_GRID
+    )
+
+    # ============================================================
+    # STEP 5: FINAL TEST (KUN HER!)
+    # ============================================================
+    print("\n########## FINAL TEST ##########")
+
+    evaluate_model(
+        model_final,
+        scaler_final,
+        X_test_selected,
+        y_test,
+        label_encoder
     )

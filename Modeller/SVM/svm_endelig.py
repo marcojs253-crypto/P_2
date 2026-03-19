@@ -108,7 +108,7 @@ def evaluate_model(model, scaler, X, y, label_encoder):
 # 6. SHAP FEATURE IMPORTANCE
 # ============================================================
 
-def shap_feature_importance(model, X_train, X_val, feature_names, save_path="Modeller/SVM/shap_feature_importance3.png"):
+def shap_feature_importance(model, X_train, X_val, feature_names, save_path="Modeller/SVM/shap_feature_importance_endelig.png"):
     print("\n=== SHAP FEATURE IMPORTANCE ===")
 
     X_sample = X_train[:100]
@@ -135,6 +135,39 @@ def shap_feature_importance(model, X_train, X_val, feature_names, save_path="Mod
 
     return importance
 
+
+# ============================================================
+# AUTOMATISK FEATURE SELECTION BASERET PÅ SHAP
+# ============================================================
+
+def select_features_cumulative(importance, cutoff=0.95):
+    """
+    Vælger features, der tilsammen står for cutoff% af total SHAP importance.
+    """
+    # Normaliser SHAP values til sum=1
+    normalized = importance / importance.sum()
+    cumulative = normalized.cumsum()
+
+    # Behold features hvor cumulative sum < cutoff
+    selected = cumulative[cumulative <= cutoff].index.tolist()
+
+    print(f"\nSelected {len(selected)} features out of {len(importance)} (covers {cutoff*100:.1f}% importance)")
+    return selected
+
+def plot_selected_features(importance, selected_features, save_path="Modeller/SVM/selected_features_endelig.png"):
+    """
+    Visualiserer de valgte features (grøn) vs. uvalgte (rød)
+    """
+    colors = ["green" if f in selected_features else "red" for f in importance.index]
+
+    plt.figure(figsize=(12,6))
+    plt.bar(importance.index, importance.values, color=colors)
+    plt.xticks(rotation=90)
+    plt.title("SHAP Feature Importance (Green = Selected, Red = Dropped)")
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=300)
+    plt.show()
+
 # ============================================================
 # 7. MAIN
 # ============================================================
@@ -147,18 +180,82 @@ if __name__ == "__main__":
     X_train, y_train, label_encoder = prepare_features(df_train)
     X_test,  y_test,  _ = prepare_features(df_test)
 
-    # 1. Train model med GridSearch
-    best_model, scaler = train_model_with_gridsearch(X_train, y_train, PARAM_GRID)
+    # ============================================================
+    # 1. GRIDSEARCH (ALLE FEATURES)
+    # ============================================================
+    print("\n\n########## STEP 1: ALL FEATURES (GRIDSEARCH) ##########")
 
-    # 2. Evaluation
-    X_test_scaled, _ = evaluate_model(best_model, scaler, X_test, y_test, label_encoder)
+    model_all, scaler_all = train_model_with_gridsearch(
+        X_train, y_train, PARAM_GRID
+    )
 
-    # 3. SHAP
-    X_train_scaled = scaler.transform(X_train)
+    print("\n--- Validation: ALL FEATURES ---")
+    evaluate_model(model_all, scaler_all, X_test, y_test, label_encoder)
 
-    shap_feature_importance(
-        best_model,
+    # ============================================================
+    # 2. SHAP + FEATURE SELECTION
+    # ============================================================
+    X_train_scaled = scaler_all.transform(X_train)
+    X_test_scaled  = scaler_all.transform(X_test)
+
+    importance = shap_feature_importance(
+        model_all,
         X_train_scaled,
         X_test_scaled,
         X_train.columns
     )
+
+    selected_features = select_features_cumulative(importance, cutoff=0.95)
+    plot_selected_features(importance, selected_features)
+
+    # Filtrer datasæt
+    X_train_selected = X_train[selected_features]
+    X_test_selected  = X_test[selected_features]
+
+    # ============================================================
+    # 3. TEST EFTER FEATURE SELECTION (INGEN RETRAIN)
+    # ============================================================
+    print("\n\n########## STEP 2: AFTER FEATURE SELECTION (RETRAIN, NO GRID) ##########")
+
+    # Ny scaler
+    scaler_selected_temp = StandardScaler()
+    X_train_selected_scaled = scaler_selected_temp.fit_transform(X_train_selected)
+    X_test_selected_scaled  = scaler_selected_temp.transform(X_test_selected)
+
+    # Samme hyperparameters som før
+    model_temp = SVC(**model_all.get_params())
+
+    model_temp.fit(X_train_selected_scaled, y_train)
+
+    y_pred = model_temp.predict(X_test_selected_scaled)
+
+    print("Accuracy:", accuracy_score(y_test, y_pred))
+    print(classification_report(y_test, y_pred, target_names=label_encoder.classes_))
+    print(confusion_matrix(y_test, y_pred))
+
+    # ============================================================
+    # 4. NY GRIDSEARCH (REDUCED FEATURES)
+    # ============================================================
+    print("\n\n########## STEP 3: GRIDSEARCH ON SELECTED FEATURES ##########")
+
+    model_selected, scaler_selected = train_model_with_gridsearch(
+        X_train_selected,
+        y_train,
+        PARAM_GRID
+    )
+
+    # ============================================================
+    # 5. FINAL TEST
+    # ============================================================
+    print("\n--- FINAL Validation: SELECTED FEATURES + GRIDSEARCH ---")
+
+    evaluate_model(
+        model_selected,
+        scaler_selected,
+        X_test_selected,
+        y_test,
+        label_encoder
+    )
+    print("\nFeature reduction:")
+    print(f"Original: {X_train.shape[1]} features")
+    print(f"Selected: {len(selected_features)} features")

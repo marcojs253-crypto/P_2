@@ -29,7 +29,7 @@ RANDOM_STATE = 42
 
 PARAM_GRID = {
     "C": [0.1, 1, 10, 100],
-    "kernel": ["linear", "rbf"],
+    "kernel": ["linear", "rbf", "poly", "sigmoid"],
     "gamma": ["scale", "auto"],
     "class_weight": [None, "balanced"],
 }
