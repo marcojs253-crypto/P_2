@@ -113,10 +113,10 @@ def shap_feature_importance(
     print("\n=== SHAP FEATURE IMPORTANCE ===")
 
     # Brug en lille sample for speed
-    X_sample = X_train[:]
+    X_sample = X_train[:500]
 
     explainer = shap.KernelExplainer(model.predict_proba, X_sample)
-    shap_values = explainer.shap_values(X_train[:])
+    shap_values = explainer.shap_values(X_train[:100])
 
     # Beregn mean |SHAP|
     mean_abs_shap = np.mean(np.abs(shap_values), axis=0)
