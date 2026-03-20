@@ -210,7 +210,6 @@ if __name__ == "__main__":
     importance = shap_feature_importance(
         model_all,
         X_train_inner_scaled,
-        X_val_scaled,
         X_train_inner.columns
     )
 
