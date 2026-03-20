@@ -107,17 +107,16 @@ def evaluate_model(model, scaler, X, y, label_encoder):
 def shap_feature_importance(
     model,
     X_train,
-    X_val,
     feature_names,
     save_path="Modeller/SVM/shap_feature_importance_udenleak.png"
 ):
     print("\n=== SHAP FEATURE IMPORTANCE ===")
 
     # Brug en lille sample for speed
-    X_sample = X_train[:100]
+    X_sample = X_train[:]
 
     explainer = shap.KernelExplainer(model.predict_proba, X_sample)
-    shap_values = explainer.shap_values(X_val[:50])
+    shap_values = explainer.shap_values(X_train[:])
 
     # Beregn mean |SHAP|
     mean_abs_shap = np.mean(np.abs(shap_values), axis=0)
@@ -128,7 +127,7 @@ def shap_feature_importance(
     importance = pd.Series(mean_abs_shap, index=feature_names).sort_values(ascending=False)
 
     # ============================================================
-    # 🔥 PLOT (BAR CHART)
+    # PLOT (BAR CHART)
     # ============================================================
     plt.figure(figsize=(12,6))
     plt.bar(importance.index, importance.values)
