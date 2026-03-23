@@ -104,7 +104,7 @@ def remove_white_noise_from_wav(input_wav_path, output_wav_path):
     )
 
 
-input_path  = "/Users/jonassvirkaer/Desktop/Speach_augmented/Training/WhiteNoise/WhiteNoise_beta-0.05_snr6.22_229.wav"
+input_path  = "/Users/jonassvirkaer/Desktop/Speach_augmented/Training/WhiteNoise/WhiteNoise_beta0.10_snr-4.38_174.wav"
 output_path = "/Users/jonassvirkaer/Desktop/Uden/filtered.wav"
 
 remove_white_noise_from_wav(
