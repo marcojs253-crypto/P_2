@@ -388,11 +388,11 @@ plt.show()
 print("Confusion matrix plot gemt: Modeller/SNN/confusion_matrix.png")
 
 # ============================================================
-# STEP 10: ERROR ANALYSIS (SNR & BETA) PÅ VALIDERINGSDATA
+# STEP 10: ERROR ANALYSIS (SNR) PÅ VALIDERINGSDATA
 # ============================================================
 
 print("\n" + "="*60)
-print("STEP 10: ERROR ANALYSIS (SNR & BETA)")
+print("STEP 10: ERROR ANALYSIS (SNR)")
 print("="*60)
 
 # Gem predictions i dataframe (samme stil som den gamle model)
@@ -401,54 +401,40 @@ df_analysis["y_true"] = y_val
 df_analysis["y_pred"] = y_pred_after
 df_analysis["correct"] = df_analysis["y_true"] == df_analysis["y_pred"]
 
-if "snr_db" not in df_analysis.columns or "beta" not in df_analysis.columns:
-    print("Kan ikke lave STEP 10 fuldt ud: kolonnerne 'snr_db' og/eller 'beta' mangler i ValidationData.csv")
+if "snr_db" not in df_analysis.columns:
+    print("Kan ikke lave STEP 10: kolonnen 'snr_db' mangler i ValidationData.csv")
 else:
-    # Behold kun støj-rækker (Clean har typisk NaN i snr_db/beta)
-    df_noise = df_analysis.dropna(subset=["snr_db", "beta"]).copy()
+    # Behold kun støj-rækker (Clean har typisk NaN i snr_db)
+    df_noise = df_analysis.dropna(subset=["snr_db"]).copy()
 
     if df_noise.empty:
-        print("Ingen gyldige støj-rækker med både snr_db og beta. Springer STEP 10 over.")
+        print("Ingen gyldige støj-rækker med snr_db. Springer STEP 10 over.")
     else:
         # ----------------------------
-        # Fejlrate vs SNR
+        # Fejlrate vs SNR (hver SNR-værdi)
         # ----------------------------
-        snr_bins = np.arange(-5, 21, 2)
-        df_noise["snr_bin"] = pd.cut(df_noise["snr_db"], bins=snr_bins)
+        df_noise["snr_value"] = pd.to_numeric(df_noise["snr_db"], errors="coerce").round().astype("Int64")
+        df_noise = df_noise.dropna(subset=["snr_value"]).copy()
 
-        snr_error = df_noise.groupby("snr_bin")["correct"].mean()
+        snr_error = df_noise.groupby("snr_value")["correct"].mean().sort_index()
         snr_error = 1 - snr_error
+
+        # Vis hele heltals-intervallet i x-aksen, også hvis nogle SNR-værdier mangler i data.
+        min_snr = int(snr_error.index.min())
+        max_snr = int(snr_error.index.max())
+        full_snr_range = np.arange(min_snr, max_snr + 1, 1)
+        snr_error = snr_error.reindex(full_snr_range)
 
         plt.figure(figsize=(8, 5))
         snr_error.plot(kind="bar")
         plt.title("SNN Model Error Rate vs SNR")
         plt.ylabel("Error Rate")
-        plt.xlabel("SNR Bin (dB)")
+        plt.xlabel("SNR (dB)")
         plt.xticks(rotation=45)
         plt.tight_layout()
         plt.savefig("Modeller/SNN/error_rate_vs_snr.png", dpi=300)
         plt.show()
         print("SNR-fejlplot gemt: Modeller/SNN/error_rate_vs_snr.png")
-
-        # ----------------------------
-        # Fejlrate vs Beta
-        # ----------------------------
-        beta_bins = np.linspace(-2.5, 2.5, 10)
-        df_noise["beta_bin"] = pd.cut(df_noise["beta"], bins=beta_bins)
-
-        beta_error = df_noise.groupby("beta_bin")["correct"].mean()
-        beta_error = 1 - beta_error
-
-        plt.figure(figsize=(8, 5))
-        beta_error.plot(kind="bar")
-        plt.title("SNN Model Error Rate vs Beta")
-        plt.ylabel("Error Rate")
-        plt.xlabel("Beta Bin")
-        plt.xticks(rotation=45)
-        plt.tight_layout()
-        plt.savefig("Modeller/SNN/error_rate_vs_beta.png", dpi=300)
-        plt.show()
-        print("Beta-fejlplot gemt: Modeller/SNN/error_rate_vs_beta.png")
 
         # ----------------------------
         # Eksempler på fejl
