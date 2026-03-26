@@ -388,11 +388,11 @@ plt.show()
 print("Confusion matrix plot gemt: Modeller/SNN/confusion_matrix.png")
 
 # ============================================================
-# STEP 10: ERROR ANALYSIS (SNR) PÅ VALIDERINGSDATA
+# STEP 10: ERROR ANALYSIS (SNR & BETA) PÅ VALIDERINGSDATA
 # ============================================================
 
 print("\n" + "="*60)
-print("STEP 10: ERROR ANALYSIS (SNR)")
+print("STEP 10: ERROR ANALYSIS (SNR & BETA)")
 print("="*60)
 
 # Gem predictions i dataframe (samme stil som den gamle model)
@@ -435,6 +435,34 @@ else:
         plt.savefig("Modeller/SNN/error_rate_vs_snr.png", dpi=300)
         plt.show()
         print("SNR-fejlplot gemt: Modeller/SNN/error_rate_vs_snr.png")
+
+        # ----------------------------
+        # Fejlrate vs Beta (binning)
+        # ----------------------------
+        if "beta" not in df_analysis.columns:
+            print("Beta-plot springes over: kolonnen 'beta' mangler i ValidationData.csv")
+        else:
+            df_beta = df_analysis.dropna(subset=["beta"]).copy()
+
+            if df_beta.empty:
+                print("Beta-plot springes over: ingen gyldige beta-værdier i valideringsdata.")
+            else:
+                beta_bins = np.linspace(-2.5, 2.5, 10)
+                df_beta["beta_bin"] = pd.cut(df_beta["beta"], bins=beta_bins)
+
+                beta_error = df_beta.groupby("beta_bin")["correct"].mean()
+                beta_error = 1 - beta_error
+
+                plt.figure(figsize=(8, 5))
+                beta_error.plot(kind="bar")
+                plt.title("SNN Model Error Rate vs Beta")
+                plt.ylabel("Error Rate")
+                plt.xlabel("Beta Bin")
+                plt.xticks(rotation=45)
+                plt.tight_layout()
+                plt.savefig("Modeller/SNN/error_rate_vs_beta.png", dpi=300)
+                plt.show()
+                print("Beta-fejlplot gemt: Modeller/SNN/error_rate_vs_beta.png")
 
         # ----------------------------
         # Eksempler på fejl

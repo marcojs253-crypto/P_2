@@ -379,17 +379,22 @@ else:
         # ----------------------------
         # Fejlrate vs SNR
         # ----------------------------
-        snr_bins = np.arange(-5, 21, 2)
-        df_noise["snr_bin"] = pd.cut(df_noise["snr_db"], bins=snr_bins)
+        df_noise["snr_int"] = pd.to_numeric(df_noise["snr_db"], errors="coerce").round().astype("Int64")
+        df_noise = df_noise.dropna(subset=["snr_int"]).copy()
 
-        snr_error = df_noise.groupby("snr_bin")["correct"].mean()
+        snr_error = df_noise.groupby("snr_int")["correct"].mean().sort_index()
         snr_error = 1 - snr_error
+
+        min_snr = int(snr_error.index.min())
+        max_snr = int(snr_error.index.max())
+        full_snr_range = np.arange(min_snr, max_snr + 1, 1)
+        snr_error = snr_error.reindex(full_snr_range)
 
         plt.figure(figsize=(8, 5))
         snr_error.plot(kind="bar")
         plt.title("SVM Model Error Rate vs SNR")
         plt.ylabel("Error Rate")
-        plt.xlabel("SNR Bin (dB)")
+        plt.xlabel("SNR (dB)")
         plt.xticks(rotation=45)
         plt.tight_layout()
         plt.savefig("Modeller/SVM/error_rate_vs_snr.png", dpi=300)
